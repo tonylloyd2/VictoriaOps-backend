@@ -1,3 +1,4 @@
+
 # FactoryOps Backend
 
 FactoryOps is a robust backend solution designed to manage and optimize factory operations efficiently. This system integrates modules for production tracking, human resources, inventory management, order processing, and advanced analytics, enabling factories to improve productivity, reduce waste, and streamline workflows.
