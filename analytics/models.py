@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils import timezone
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.conf import settings
 
 class AnalyticsEvent(models.Model):
     """Model for tracking analytics events"""
@@ -214,3 +215,165 @@ class DataAggregation(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.aggregation_type} - {self.time_period})"
+
+class Department(models.Model):
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True)
+    manager = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='managed_departments'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        ordering = ['name']
+
+class ProductionMetrics(models.Model):
+    date = models.DateField()
+    production_line = models.CharField(max_length=100)
+    output_quantity = models.IntegerField(validators=[MinValueValidator(0)])
+    defect_rate = models.FloatField(
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text="Defect rate in percentage"
+    )
+    efficiency = models.FloatField(
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text="Production line efficiency in percentage"
+    )
+    downtime = models.DurationField(help_text="Total downtime duration")
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.production_line} - {self.date}"
+
+    class Meta:
+        ordering = ['-date']
+        verbose_name = "Production Metric"
+        verbose_name_plural = "Production Metrics"
+
+class InventoryMetrics(models.Model):
+    date = models.DateField()
+    warehouse = models.CharField(max_length=100)
+    stock_value = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(0)]
+    )
+    turnover_rate = models.FloatField(
+        validators=[MinValueValidator(0)],
+        help_text="Inventory turnover rate"
+    )
+    stockout_incidents = models.IntegerField(
+        default=0,
+        validators=[MinValueValidator(0)],
+        help_text="Number of stockout incidents"
+    )
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.warehouse} - {self.date}"
+
+    class Meta:
+        ordering = ['-date']
+        verbose_name = "Inventory Metric"
+        verbose_name_plural = "Inventory Metrics"
+
+class AnalyticsEventNew(models.Model):
+    EVENT_TYPES = [
+        ('system', 'System Event'),
+        ('user', 'User Event'),
+        ('business', 'Business Event'),
+    ]
+    
+    event_type = models.CharField(max_length=20, choices=EVENT_TYPES)
+    name = models.CharField(max_length=100)
+    description = models.TextField()
+    data = models.JSONField()
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='analytics_events_new'
+    )
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.event_type} - {self.name}"
+
+    class Meta:
+        ordering = ['-timestamp']
+
+class ReportNew(models.Model):
+    REPORT_TYPES = [
+        ('daily', 'Daily Report'),
+        ('weekly', 'Weekly Report'),
+        ('monthly', 'Monthly Report'),
+        ('custom', 'Custom Report'),
+    ]
+    
+    title = models.CharField(max_length=200)
+    report_type = models.CharField(max_length=20, choices=REPORT_TYPES)
+    description = models.TextField(blank=True)
+    parameters = models.JSONField(default=dict)
+    data = models.JSONField()
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='created_reports_new'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.title} - {self.report_type}"
+
+    class Meta:
+        ordering = ['-created_at']
+
+class AlertNew(models.Model):
+    SEVERITY_LEVELS = [
+        ('low', 'Low'),
+        ('medium', 'Medium'),
+        ('high', 'High'),
+        ('critical', 'Critical'),
+    ]
+    
+    title = models.CharField(max_length=200)
+    description = models.TextField()
+    severity = models.CharField(max_length=20, choices=SEVERITY_LEVELS)
+    is_active = models.BooleanField(default=True)
+    data = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.severity} - {self.title}"
+
+    class Meta:
+        ordering = ['-created_at']
+
+class DataAggregationNew(models.Model):
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True)
+    aggregation_type = models.CharField(max_length=50)
+    data = models.JSONField()
+    parameters = models.JSONField(default=dict)
+    last_updated = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.name} - {self.aggregation_type}"
+
+    class Meta:
+        ordering = ['-last_updated']
